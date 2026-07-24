@@ -21,6 +21,22 @@ export const galleryConfig: GalleryConfig = {
 			date: "2026-01-01",
 			tags: ["崩坏星穹铁道", "流萤"],
 		},
+		{
+			id: "fujian",
+			name: "福建",
+			description: "拍摄于福州熊猫世界",
+			location: "福建-福州",
+			date: "2026-04-28",
+			tags: ["旅行", "福建"],
+		},
+		{
+			id: "wutaishan",
+			name: "五台山",
+			description: "拍摄于山西省忻州市五台山",
+			location: "山西-忻州",
+			date: "2026-05-27",
+			tags: ["旅行", "山西"],
+		},
 	],
 
 	// 瀑布流最小列宽(px)，浏览器根据容器宽度自动计算列数，默认 240
