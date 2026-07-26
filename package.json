@@ -74,6 +74,7 @@
     "typescript": "^5.9.2",
     "unist-util-is": "^6.0.1",
     "unist-util-visit": "^5.1.0"
+    
   },
   "devDependencies": {
     "@astrojs/ts-plugin": "^1.10.7",
@@ -89,7 +90,11 @@
     "@types/sanitize-html": "^2.16.1",
     "postcss-import": "^16.1.1",
     "postcss-nesting": "^13.0.2",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+
+    "@astrojs/cloudflare": "0.11.3"
   },
   "packageManager": "pnpm@9.14.4"
+
+  
 }
