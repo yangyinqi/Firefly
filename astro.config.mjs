@@ -33,8 +33,6 @@ import rehypeEmailProtection from "./src/plugins/rehype-email-protection.mjs";
 import rehypeExternalLinks from "./src/plugins/rehype-external-links.mjs";
 import rehypeFigure from "./src/plugins/rehype-figure.mjs";
 import { remarkImageGrid } from "./src/plugins/remark-image-grid.js";
-//新增
-import cloudflare from '@astrojs/cloudflare';
 
 // https://astro.build/config
 export default defineConfig({
@@ -55,11 +53,6 @@ export default defineConfig({
 		// 队列渲染以优化性能（实验性）
 		queuedRendering: { enabled: true },
 	},
-
-	//新增
-	adapter: cloudflare({
-		platformProxy: true
-	}),
 
 	integrations: [
 		swup({
