@@ -42,6 +42,11 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 		],
 	});
 
+	// 地图（原"新页签"位置）
+	if (siteConfig.pages.map) {
+		links.push(LinkPreset.Map);
+	}
+
 	// 关于及其子菜单
 	links.push({
 		name: "关于",

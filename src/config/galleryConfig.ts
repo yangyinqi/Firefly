@@ -37,6 +37,30 @@ export const galleryConfig: GalleryConfig = {
 			date: "2026-05-27",
 			tags: ["旅行", "山西"],
 		},
+		{
+			id: "hangpai",
+			name: "航拍汇总",
+			description: "航拍汇总",
+			location: "DJI-AIR3",
+			date: "2026-08-03",
+			tags: ["旅行", "航拍"],
+		},
+		{
+			id: "yunnan",
+			name: "玉龙雪山",
+			description: "玉龙雪山4680平台",
+			location: "云南-丽江",
+			date: "2024-10-18",
+			tags: ["旅行", "云南"],
+		},
+		{
+			id: "shanghai",
+			name: "上海",
+			description: "上海外滩",
+			location: "上海外滩",
+			date: "2023-01-21",
+			tags: ["旅行", "上海"],
+		},
 	],
 
 	// 瀑布流最小列宽(px)，浏览器根据容器宽度自动计算列数，默认 240

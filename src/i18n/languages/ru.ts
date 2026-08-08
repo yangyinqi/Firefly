@@ -308,6 +308,10 @@ export const ru: Translation = {
 	[Key.galleryNoAlbums]: "Пока нет альбомов",
 	[Key.galleryBackToAlbums]: "Вернуться к альбомам",
 
+	// Страница карты
+	[Key.map]: "Карта",
+	[Key.mapDescription]: "Отметьте места съемки на карте, следите за своим путешествием",
+
 	// Защита паролем
 	[Key.passwordProtected]: "Защищено паролем",
 	[Key.passwordProtectedDesc]:

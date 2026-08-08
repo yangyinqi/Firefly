@@ -307,6 +307,10 @@ export const en: Translation = {
 	[Key.galleryNoAlbums]: "No albums yet",
 	[Key.galleryBackToAlbums]: "Back to albums",
 
+	// Map Page
+	[Key.map]: "Map",
+	[Key.mapDescription]: "Mark shooting locations on the map, track your journey",
+
 	// Password Protection
 	[Key.passwordProtected]: "Password Protected",
 	[Key.passwordProtectedDesc]:

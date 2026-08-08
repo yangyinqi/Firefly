@@ -138,6 +138,8 @@ export const siteConfig: SiteConfig = {
 		bangumi: true,
 		// 相册页面开关
 		gallery: true,
+		// 地图页面开关
+		map: true,
 	},
 
 	// 分类导航栏开关，在首页和归档页顶部显示分类快捷导航

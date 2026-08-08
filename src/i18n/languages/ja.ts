@@ -306,6 +306,10 @@ export const ja: Translation = {
 	[Key.galleryNoAlbums]: "アルバムがありません",
 	[Key.galleryBackToAlbums]: "アルバム一覧に戻る",
 
+	// 地図ページ
+	[Key.map]: "地図",
+	[Key.mapDescription]: "撮影場所を地図にマークして、旅の足迹を記録する",
+
 	// パスワード保護
 	[Key.passwordProtected]: "パスワード保護",
 	[Key.passwordProtectedDesc]:

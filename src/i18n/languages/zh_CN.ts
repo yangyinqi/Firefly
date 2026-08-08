@@ -298,6 +298,10 @@ export const zh_CN: Translation = {
 	[Key.galleryNoAlbums]: "暂无相册",
 	[Key.galleryBackToAlbums]: "返回相册列表",
 
+	// 地图页面
+	[Key.map]: "地图",
+	[Key.mapDescription]: "在地图上标记拍摄地点，记录旅途的足迹",
+
 	// 密码保护
 	[Key.passwordProtected]: "密码保护",
 	[Key.passwordProtectedDesc]: "这篇文章已被密码保护，请输入密码查看内容。",

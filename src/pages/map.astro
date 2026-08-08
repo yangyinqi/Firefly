@@ -1,0 +1,148 @@
+---
+import { Icon } from "astro-icon/components";
+import ChinaMap from "@/map/ChinaMap.astro";
+import { galleryConfig, siteConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+import MainGridLayout from "@/layouts/MainGridLayout.astro";
+import { scanAlbumPhotos } from "@/utils/gallery-utils";
+import { scanGalleryPhotosForGPS } from "@/map/exif-utils";
+import { enrichMarkersWithProvince } from "@/map/map-utils";
+import { PROVINCE_DISPLAY_NAMES } from "@/map/config";
+
+// 检查页面是否启用
+if (!siteConfig.pages.map) {
+	return Astro.redirect("/404/");
+}
+
+const title = i18n(I18nKey.map);
+const description = i18n(I18nKey.mapDescription);
+
+// 构建相册数据
+const albumsData = galleryConfig.albums.map((album) => {
+	const photos = scanAlbumPhotos(album.id);
+	return { id: album.id, name: album.name, photos };
+});
+
+// 扫描照片GPS信息并生成标记点
+let markers = scanGalleryPhotosForGPS(albumsData);
+
+// 为标记点添加省份信息
+markers = enrichMarkersWithProvince(markers);
+
+// 按省份分组统计
+const provinceStats: { [key: string]: { name: string; displayName: string; count: number } } = {};
+for (const marker of markers) {
+	const provinceId = marker.provinceId || "unknown";
+	if (!provinceStats[provinceId]) {
+		provinceStats[provinceId] = { name: provinceId, displayName: PROVINCE_DISPLAY_NAMES[provinceId] || "未知", count: 0 };
+	}
+	provinceStats[provinceId].count++;
+}
+
+const sortedProvinces = Object.entries(provinceStats)
+	.sort((a, b) => b[1].count - a[1].count);
+
+// 总照片数和定位率
+const totalPhotos = albumsData.reduce((sum, a) => sum + a.photos.length, 0);
+const locatedPhotos = markers.length;
+const locationRate = totalPhotos > 0 ? Math.round((locatedPhotos / totalPhotos) * 100) : 0;
+---
+
+<MainGridLayout title={title} description={description}>
+	<div class="flex w-full flex-col gap-4">
+		<!-- 页面标题卡片 -->
+		<div
+			class="card-base px-6 py-5 rounded-(--radius-large) relative overflow-hidden"
+		>
+			<div class="flex items-center justify-between flex-wrap gap-4">
+				<div class="flex items-center gap-4">
+					<div
+						class="h-12 w-12 rounded-xl bg-(--primary) flex items-center justify-center text-white dark:text-black/70"
+					>
+						<Icon name="material-symbols:map" class="text-[2rem]" />
+					</div>
+					<div>
+						<h1 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+							{title}
+						</h1>
+						{description && (
+							<p class="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+								{description}
+							</p>
+						)}
+					</div>
+				</div>
+
+				<!-- 统计数据 -->
+				<div class="flex items-center gap-6">
+					<div class="text-center">
+						<div class="text-2xl font-bold text-(--primary)">{locatedPhotos}</div>
+						<div class="text-xs text-neutral-500 dark:text-neutral-400">已定位照片</div>
+					</div>
+					<div class="w-px h-8 bg-neutral-200 dark:bg-neutral-700" />
+					<div class="text-center">
+						<div class="text-2xl font-bold text-neutral-700 dark:text-neutral-300">{totalPhotos}</div>
+						<div class="text-xs text-neutral-500 dark:text-neutral-400">总照片数</div>
+					</div>
+					<div class="w-px h-8 bg-neutral-200 dark:bg-neutral-700" />
+					<div class="text-center">
+						<div class="text-2xl font-bold text-(--primary)">{locationRate}%</div>
+						<div class="text-xs text-neutral-500 dark:text-neutral-400">定位率</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 地图组件 -->
+		{markers.length > 0 ? (
+			<div class="rounded-(--radius-large) overflow-hidden">
+				<ChinaMap markers={markers} />
+			</div>
+		) : (
+			<div
+				class="card-base px-6 py-16 rounded-(--radius-large) text-center"
+			>
+				<Icon
+					name="material-symbols:location-on"
+					class="text-6xl text-neutral-300 dark:text-neutral-600 mb-4"
+				/>
+				<h2 class="text-xl font-semibold text-neutral-500 dark:text-neutral-400 mb-2">
+					暂无定位数据
+				</h2>
+				<p class="text-sm text-neutral-400 dark:text-neutral-500">
+					相册中的照片尚未包含 GPS 位置信息
+				</p>
+			</div>
+		)}
+
+		<!-- 省份统计列表 -->
+		{markers.length > 0 && sortedProvinces.length > 0 && (
+			<div
+				class="card-base px-6 py-5 rounded-(--radius-large)"
+			>
+				<h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center gap-2">
+					<Icon name="material-symbols:location-on" class="text-xl" />
+					拍摄地点分布
+				</h3>
+				<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+					{sortedProvinces.map(([, stats]) => (
+						<div
+							class="flex items-center gap-2 p-2 rounded-lg bg-neutral-100 dark:bg-neutral-800/50"
+						>
+							<Icon name="material-symbols:location-on" class="text-(--primary) text-base" />
+							<div class="flex flex-col">
+								<span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+									{stats.displayName}
+								</span>
+								<span class="text-xs text-neutral-500 dark:text-neutral-400">
+									{stats.count} 张
+								</span>
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		)}
+	</div>
+</MainGridLayout>

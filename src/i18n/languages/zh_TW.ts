@@ -300,6 +300,10 @@ export const zh_TW: Translation = {
 	[Key.galleryNoAlbums]: "暫無相簿",
 	[Key.galleryBackToAlbums]: "返回相簿列表",
 
+	// 地圖頁面
+	[Key.map]: "地圖",
+	[Key.mapDescription]: "在地圖上標記拍攝地點，記錄旅途的足跡",
+
 	// 密碼保護
 	[Key.passwordProtected]: "密碼保護",
 	[Key.passwordProtectedDesc]: "這篇文章已被密碼保護，請輸入密碼查看內容。",

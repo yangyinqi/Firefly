@@ -1,0 +1,398 @@
+---
+import type { MapPhotoMarker } from "./types";
+import { PROVINCES } from "./china-provinces";
+import { MAP_WIDTH, MAP_HEIGHT, DEFAULT_PIN_SIZE, CLUSTER_PIN_SIZE, PROVINCE_DISPLAY_NAMES } from "./config";
+import { projectLngLat, groupMarkersByProvince, computeClusterPosition } from "./map-utils";
+
+interface Props {
+	markers: MapPhotoMarker[];
+}
+
+const { markers } = Astro.props;
+
+const groupedMarkers = groupMarkersByProvince(markers);
+
+// Compute cluster markers (provinces with multiple photos)
+const clusterMarkers: Array<{
+	provinceId: string;
+	count: number;
+	x: number;
+	y: number;
+	photos: MapPhotoMarker[];
+}> = [];
+
+for (const [provinceId, photos] of groupedMarkers.entries()) {
+	if (photos.length > 1) {
+		const pos = computeClusterPosition(photos);
+		clusterMarkers.push({
+			provinceId,
+			count: photos.length,
+			x: pos.x,
+			y: pos.y,
+			photos,
+		});
+	}
+}
+
+// Compute single markers (provinces with one photo)
+const singleMarkers: Array<MapPhotoMarker & { x: number; y: number }> = [];
+const clusteredProvinceIds = new Set(clusterMarkers.map((c) => c.provinceId));
+
+for (const marker of markers) {
+	if (!marker.provinceId || clusteredProvinceIds.has(marker.provinceId)) continue;
+	const pos = projectLngLat(marker.lng, marker.lat);
+	singleMarkers.push({ ...marker, x: pos.x, y: pos.y });
+}
+
+// Province highlight data
+const provinceHighlights = PROVINCES.map((province) => ({
+	province,
+	count: groupedMarkers.get(province.id)?.length || 0,
+	displayName: PROVINCE_DISPLAY_NAMES[province.id] || province.name,
+}));
+---
+
+<div class="china-map-container relative w-full overflow-hidden rounded-(--radius-large)">
+	<!-- Map SVG -->
+	<div class="map-svg-wrapper relative w-full" style="aspect-ratio: {MAP_WIDTH} / {MAP_HEIGHT};">
+		<svg
+			viewBox={`-20 -20 ${MAP_WIDTH + 40} ${MAP_HEIGHT + 40}`}
+			class="map-svg w-full h-full"
+			xmlns="http://www.w3.org/2000/svg"
+			overflow="visible"
+		>
+			<!-- Definitions -->
+			<defs>
+				<filter id="pin-shadow" x="-50%" y="-50%" width="200%" height="200%">
+					<feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3" />
+				</filter>
+				<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+					<feGaussianBlur stdDeviation="2" result="coloredBlur" />
+					<feMerge>
+						<feMergeNode in="coloredBlur" />
+						<feMergeNode in="SourceGraphic" />
+					</feMerge>
+				</filter>
+			</defs>
+
+			<!-- Background provinces -->
+			{
+				provinceHighlights.map(({ province, count, displayName }) => (
+					<g class="province-group" data-province-id={province.id}>
+						<path
+							d={province.path}
+							class="province-path"
+							style={`fill: var(${count > 0 ? "--map-province-highlight" : "--map-province-fill"});`}
+							stroke="var(--map-province-stroke)"
+							stroke-width="0.5"
+							stroke-linejoin="round"
+						/>
+						<text
+							class="province-label"
+							x={province.labelX}
+							y={province.labelY}
+							text-anchor="middle"
+							font-size={province.labelFontSize ?? 10}
+							style="fill: var(--map-province-label);"
+							font-weight="600"
+							dominant-baseline="middle"
+						>
+							{displayName}
+						</text>
+					</g>
+				))
+			}
+
+			<!-- Single photo markers -->
+			{
+				singleMarkers.map((marker) => (
+					<g
+						class="map-pin-group cursor-pointer transition-transform duration-200 hover:scale-125"
+						style={`transform-origin: ${marker.x}px ${marker.y}px;`}
+						data-marker-id={marker.id}
+						data-src={marker.src}
+						data-caption={marker.caption || ""}
+						data-lat={marker.lat}
+						data-lng={marker.lng}
+					>
+						<!-- Photo thumbnail outer ring (white border) -->
+						<circle
+							cx={marker.x}
+							cy={marker.y}
+							r={DEFAULT_PIN_SIZE * 1.8}
+							class="map-pin-thumbnail"
+							fill="white"
+							stroke="white"
+							stroke-width="2"
+						/>
+						<!-- Actual thumbnail image as clip -->
+						<defs>
+							<clipPath id={`clip-${marker.id}`}>
+								<circle
+									cx={marker.x}
+									cy={marker.y}
+									r={DEFAULT_PIN_SIZE * 1.55}
+								/>
+							</clipPath>
+						</defs>
+						<image
+							href={marker.thumbnail}
+							x={marker.x - DEFAULT_PIN_SIZE * 1.55}
+							y={marker.y - DEFAULT_PIN_SIZE * 1.55}
+							width={DEFAULT_PIN_SIZE * 3.1}
+							height={DEFAULT_PIN_SIZE * 3.1}
+							clip-path={`url(#clip-${marker.id})`}
+							class="map-pin-image"
+							preserveAspectRatio="xMidYMid slice"
+						/>
+					</g>
+				))
+			}
+
+			<!-- Cluster markers -->
+			{
+				clusterMarkers.map((cluster) => (
+					<g
+						class="map-cluster-group cursor-pointer transition-transform duration-200 hover:scale-125"
+						style={`transform-origin: ${cluster.x}px ${cluster.y}px;`}
+						data-cluster-province={cluster.provinceId}
+						data-count={cluster.count}
+					>
+						<!-- Cluster thumbnail outer ring -->
+						<circle
+							cx={cluster.x}
+							cy={cluster.y}
+							r={CLUSTER_PIN_SIZE * 1.8}
+							fill="white"
+							stroke="white"
+							stroke-width="3"
+						/>
+						<!-- First photo thumbnail -->
+						<defs>
+							<clipPath id={`cluster-clip-${cluster.provinceId}`}>
+								<circle
+									cx={cluster.x}
+									cy={cluster.y}
+									r={CLUSTER_PIN_SIZE * 1.55}
+								/>
+							</clipPath>
+						</defs>
+						<image
+							href={cluster.photos[0]?.thumbnail || ""}
+							x={cluster.x - CLUSTER_PIN_SIZE * 1.55}
+							y={cluster.y - CLUSTER_PIN_SIZE * 1.55}
+							width={CLUSTER_PIN_SIZE * 3.1}
+							height={CLUSTER_PIN_SIZE * 3.1}
+							clip-path={`url(#cluster-clip-${cluster.provinceId})`}
+							preserveAspectRatio="xMidYMid slice"
+						/>
+						<!-- Cluster count badge -->
+						<circle
+							cx={cluster.x + CLUSTER_PIN_SIZE * 1.1}
+							cy={cluster.y - CLUSTER_PIN_SIZE * 1.1}
+							r="11"
+							fill="rgba(0,0,0,0.7)"
+							stroke="white"
+							stroke-width="2"
+						/>
+						<text
+							x={cluster.x + CLUSTER_PIN_SIZE * 1.1}
+							y={cluster.y - CLUSTER_PIN_SIZE * 1.1}
+							text-anchor="middle"
+							dominant-baseline="middle"
+							font-size="12"
+							font-weight="700"
+							fill="white"
+						>
+							{cluster.count}
+						</text>
+					</g>
+				))
+			}
+		</svg>
+	</div>
+
+	<!-- Map info overlay -->
+	<div class="map-info-overlay absolute top-4 left-4 flex flex-col gap-2">
+		<div class="map-stat-card bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-lg text-sm">
+			<span class="font-medium">{markers.length}</span> 张照片已定位
+		</div>
+	</div>
+
+	<!-- Legend -->
+	<div class="map-legend absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white px-3 py-2 rounded-lg text-xs flex flex-col gap-1">
+		<div class="flex items-center gap-2">
+			<circle cx="6" cy="6" r="5" fill="white" stroke="#ccc" stroke-width="1" />
+			<span>单张照片</span>
+		</div>
+		<div class="flex items-center gap-2">
+			<circle cx="6" cy="6" r="6" fill="white" stroke="#ccc" stroke-width="1" />
+			<circle cx="10" cy="2" r="3" fill="rgba(0,0,0,0.7)" stroke="white" stroke-width="1" />
+			<span class="relative left-1">多张照片</span>
+		</div>
+	</div>
+</div>
+
+<!-- Lightbox -->
+<div
+	id="map-lightbox"
+	class="map-lightbox fixed inset-0 z-50 hidden items-center justify-center"
+	aria-hidden="true"
+>
+	<div class="map-lightbox-backdrop absolute inset-0 bg-black/80" />
+	<div class="map-lightbox-container relative max-w-[90vw] max-h-[90vh] flex flex-col items-center">
+		<img
+			class="map-lightbox-img max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+			alt=""
+		/>
+		<div class="map-lightbox-caption mt-4 text-white text-center">
+			<span class="map-lightbox-location block text-lg font-medium" />
+			<span class="map-lightbox-meta block text-sm text-white/70 mt-1" />
+		</div>
+		<button
+			class="map-lightbox-close absolute top-2 right-2 w-10 h-10 rounded-full bg-white/20 text-white text-2xl flex items-center justify-center hover:bg-white/30 transition-colors"
+			aria-label="关闭"
+		>
+			&times;
+		</button>
+	</div>
+</div>
+
+<style>
+	.china-map-container {
+		background: linear-gradient(135deg, oklch(0.95 0.015 var(--hue)), transparent);
+		border: 1px solid oklch(0.90 0.02 var(--hue));
+		--map-province-fill: oklch(0.92 0.015 var(--hue));
+		--map-province-highlight: oklch(0.80 0.06 var(--hue));
+		--map-province-stroke: oklch(0.70 0.04 var(--hue));
+		--map-province-label: oklch(0.40 0.08 var(--hue));
+		--map-pin-fill: var(--primary);
+	}
+
+	:root.dark .china-map-container {
+		background: linear-gradient(135deg, oklch(0.20 0.015 var(--hue)), transparent);
+		border: 1px solid oklch(0.28 0.02 var(--hue));
+		--map-province-fill: oklch(0.22 0.015 var(--hue));
+		--map-province-highlight: oklch(0.35 0.04 var(--hue));
+		--map-province-stroke: oklch(0.45 0.03 var(--hue));
+		--map-province-label: oklch(0.85 0.05 var(--hue));
+	}
+
+	.province-path {
+		transition: fill 0.3s ease;
+		cursor: pointer;
+	}
+
+	.province-group:hover .province-path {
+		fill: var(--map-province-highlight) !important;
+		filter: brightness(1.1);
+	}
+
+	.province-group:hover .province-label {
+		font-weight: 700;
+	}
+
+	.province-label {
+		pointer-events: none;
+		user-select: none;
+	}
+
+	.map-pin-group:hover .map-pin-body {
+		filter: url(#glow);
+	}
+
+	.map-cluster-group:hover .cluster-photo-item {
+		opacity: 1;
+	}
+
+	.map-lightbox {
+		opacity: 1;
+	}
+
+	.map-lightbox.hidden {
+		display: none !important;
+	}
+
+	.map-lightbox:not(.hidden) {
+		display: flex;
+	}
+</style>
+
+<script>
+	// Handle lightbox interactions
+	document.addEventListener("DOMContentLoaded", () => {
+		const lightbox = document.getElementById("map-lightbox");
+		const lightboxImg = lightbox?.querySelector(".map-lightbox-img") as HTMLImageElement | null;
+		const lightboxLocation = lightbox?.querySelector(".map-lightbox-location") as HTMLElement | null;
+		const lightboxMeta = lightbox?.querySelector(".map-lightbox-meta") as HTMLElement | null;
+		const closeBtn = lightbox?.querySelector(".map-lightbox-close");
+		const backdrop = lightbox?.querySelector(".map-lightbox-backdrop");
+
+		function openLightbox(src: string, caption: string, lat: number, lng: number) {
+			if (!lightbox || !lightboxImg || !lightboxLocation || !lightboxMeta) return;
+			lightboxImg.src = src;
+			lightboxLocation.textContent = caption || "";
+			lightboxMeta.textContent = `经度: ${lng.toFixed(4)}, 纬度: ${lat.toFixed(4)}`;
+			lightbox.classList.remove("hidden");
+			lightbox.setAttribute("aria-hidden", "false");
+			document.body.style.overflow = "hidden";
+		}
+
+		function closeLightbox() {
+			if (!lightbox) return;
+			lightbox.classList.add("hidden");
+			lightbox.setAttribute("aria-hidden", "true");
+			document.body.style.overflow = "";
+		}
+
+		// Single pin click
+		document.querySelectorAll(".map-pin-group").forEach((group) => {
+			group.addEventListener("click", (e) => {
+				const target = e.currentTarget as HTMLElement;
+				const src = target.dataset.src || "";
+				const caption = target.dataset.caption || "";
+				const lat = parseFloat(target.dataset.lat || "0");
+				const lng = parseFloat(target.dataset.lng || "0");
+				if (src) openLightbox(src, caption, lat, lng);
+			});
+		});
+
+		// Cluster photo click
+		document.querySelectorAll(".cluster-photo-item").forEach((item) => {
+			item.addEventListener("click", (e) => {
+				e.stopPropagation();
+				const target = e.currentTarget as HTMLElement;
+				const src = target.dataset.src || "";
+				const caption = target.dataset.caption || "";
+				const lat = parseFloat(target.dataset.lat || "0");
+				const lng = parseFloat(target.dataset.lng || "0");
+				if (src) openLightbox(src, caption, lat, lng);
+			});
+		});
+
+		// Close on button click
+		closeBtn?.addEventListener("click", closeLightbox);
+		backdrop?.addEventListener("click", closeLightbox);
+
+		// Close on ESC key
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "Escape" && lightbox && !lightbox.classList.contains("hidden")) {
+				closeLightbox();
+			}
+		});
+
+		// Cluster hover expansion
+		document.querySelectorAll(".map-cluster-group").forEach((group) => {
+			group.addEventListener("mouseenter", () => {
+				group.querySelectorAll(".cluster-photo-item").forEach((item) => {
+					(item as HTMLElement).style.opacity = "1";
+				});
+			});
+			group.addEventListener("mouseleave", () => {
+				group.querySelectorAll(".cluster-photo-item").forEach((item) => {
+					(item as HTMLElement).style.opacity = "";
+				});
+			});
+		});
+	});
+</script>
